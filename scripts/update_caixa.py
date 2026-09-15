@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Atualiza a lista pública nacional de imóveis da CAIXA para o GitHub Pages.
 
-- Baixa as 27 listas estaduais em paralelo.
+- Baixa as 27 listas estaduais de forma controlada e com novas tentativas.
 - Estrutura tipo, quartos, WC, vagas e áreas.
 - Mantém a primeira data de detecção global por imóvel.
 - Gera a base nacional apenas para o artefato do Pages, evitando inflar o Git.
@@ -16,7 +16,6 @@ import re
 import sys
 import time
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -53,10 +52,10 @@ def decode_bytes(raw: bytes, uf: str) -> str:
             pass
     raise RuntimeError(f"{uf}: codificação do CSV não reconhecida")
 
-def download_uf(uf: str, retries: int = 3) -> str:
+def download_uf(uf: str, retries: int = 5) -> str:
     url = SOURCE_URL.format(uf=uf)
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; RadarImoveisBrasil-GitHubPages/3.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; RadarImoveisBrasil-GitHubPages/3.1)",
         "Accept": "text/csv,application/octet-stream,*/*",
     }
     last = None
@@ -66,11 +65,15 @@ def download_uf(uf: str, retries: int = 3) -> str:
                 raw = response.read()
             if len(raw) < 200:
                 raise RuntimeError(f"{uf}: arquivo vazio")
-            return decode_bytes(raw, uf)
+            text = decode_bytes(raw, uf)
+            sample = normalize(text[:8000])
+            if ";" not in text[:8000] or "cidade" not in sample or "imovel" not in sample:
+                raise RuntimeError(f"{uf}: resposta temporária não é o CSV esperado")
+            return text
         except (HTTPError, URLError, TimeoutError, RuntimeError) as exc:
             last = exc
             if attempt < retries:
-                time.sleep(attempt * 2)
+                time.sleep(attempt * 3)
     raise RuntimeError(f"{uf}: falha após {retries} tentativas: {last}")
 
 def generation_date(text: str) -> str | None:
@@ -245,21 +248,20 @@ def fetch_all_states() -> tuple[list[dict], list[dict]]:
     properties: list[dict] = []
     states_meta: list[dict] = []
     errors: list[str] = []
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(download_uf, uf): uf for uf in UFS}
-        for future in as_completed(futures):
-            uf = futures[future]
-            try:
-                text = future.result()
-                props = parse_properties(text, uf)
-                if not props:
-                    raise RuntimeError("nenhum imóvel encontrado")
-                properties.extend(props)
-                states_meta.append({"uf": uf, "total": len(props), "generatedAt": generation_date(text)})
-                print(f"[{uf}] {len(props)} imóveis")
-            except Exception as exc:
-                errors.append(f"{uf}: {exc}")
-                print(f"[{uf}] ERRO: {exc}", file=sys.stderr)
+    # A CAIXA pode devolver páginas de rejeição quando recebe muitas consultas
+    # simultâneas. A coleta sequencial é intencional para priorizar confiabilidade.
+    for position, uf in enumerate(UFS):
+        try:
+            text = download_uf(uf)
+            props = parse_properties(text, uf)
+            properties.extend(props)
+            states_meta.append({"uf": uf, "total": len(props), "generatedAt": generation_date(text)})
+            print(f"[{uf}] {len(props)} imóveis")
+        except Exception as exc:
+            errors.append(f"{uf}: {exc}")
+            print(f"[{uf}] ERRO: {exc}", file=sys.stderr)
+        if position < len(UFS) - 1:
+            time.sleep(0.8)
     if errors:
         raise RuntimeError("Falha em uma ou mais UFs: " + " | ".join(errors))
     states_meta.sort(key=lambda x: x["uf"])
@@ -310,10 +312,7 @@ def main() -> int:
     for state_meta in states_meta:
         state_meta["newCount"] = new_by_state.get(state_meta["uf"], 0)
 
-    properties.sort(
-        key=lambda p: (p.get("firstSeen") or "", p.get("uf") or "", p.get("numeroImovel") or ""),
-        reverse=True,
-    )
+    properties.sort(key=lambda p: (p.get("firstSeen") or "", p.get("uf") or "", p.get("numeroImovel") or ""), reverse=True)
     payload = {
         "scope": "BR",
         "source": SOURCE_PAGE,
