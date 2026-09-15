@@ -1,86 +1,107 @@
-const $ = (s) => document.querySelector(s);
-const DATA_URL = new URL('data/imoveis-brasil.json', document.baseURI).toString();
-const APP_BASE_URL = new URL('./', document.baseURI).toString();
-const API_BASE = 'https://gkkkqvpnunpdbzpdbqky.supabase.co/functions/v1';
-const STORAGE = { favorites:'radarCaixaBR.favorites.v1', alertProfile:'radarCaixaBR.alertProfile.v4', alertsEnabled:'radarCaixaBR.alerts.v4' };
-const UF_NAMES={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
-const STATE_CENTERS={AC:[-9.02,-70.81],AL:[-9.57,-36.78],AP:[1.41,-51.77],AM:[-3.47,-65.10],BA:[-12.58,-41.70],CE:[-5.20,-39.53],DF:[-15.78,-47.80],ES:[-19.19,-40.34],GO:[-15.98,-49.86],MA:[-5.42,-45.44],MT:[-12.64,-55.42],MS:[-20.51,-54.54],MG:[-18.10,-44.38],PA:[-3.79,-52.48],PB:[-7.28,-36.72],PR:[-24.89,-51.55],PE:[-8.38,-37.86],PI:[-7.72,-42.73],RJ:[-22.25,-42.66],RN:[-5.81,-36.59],RS:[-30.17,-53.50],RO:[-10.83,-63.34],RR:[2.74,-62.08],SC:[-27.45,-50.95],SP:[-22.19,-48.79],SE:[-10.57,-37.45],TO:[-10.25,-48.25]};
-const els={
- refreshButton:$('#refreshButton'),notificationButton:$('#notificationButton'),sourceLine:$('#sourceLine'),actionBanner:$('#actionBanner'),
- totalStat:$('#totalStat'),filteredStat:$('#filteredStat'),newStat:$('#newStat'),discountStat:$('#discountStat'),
- searchInput:$('#searchInput'),stateSelect:$('#stateSelect'),citySelect:$('#citySelect'),neighborhoodSelect:$('#neighborhoodSelect'),typeSelect:$('#typeSelect'),sortSelect:$('#sortSelect'),
- minPriceInput:$('#minPriceInput'),maxPriceInput:$('#maxPriceInput'),minDiscountInput:$('#minDiscountInput'),bedroomsSelect:$('#bedroomsSelect'),bathroomsSelect:$('#bathroomsSelect'),parkingSelect:$('#parkingSelect'),
- financingSelect:$('#financingSelect'),modalitySelect:$('#modalitySelect'),minAreaInput:$('#minAreaInput'),maxAreaInput:$('#maxAreaInput'),onlyNewInput:$('#onlyNewInput'),onlyFavoritesInput:$('#onlyFavoritesInput'),
- clearFilters:$('#clearFilters'),shareSearchButton:$('#shareSearchButton'),exportCsvButton:$('#exportCsvButton'),activeFilters:$('#activeFilters'),advancedFilters:$('#advancedFilters'),
- useCurrentFiltersButton:$('#useCurrentFiltersButton'),alertActionButton:$('#alertActionButton'),alertStatus:$('#alertStatus'),
- emailAlertForm:$('#emailAlertForm'),emailInput:$('#emailInput'),emailSubscribeButton:$('#emailSubscribeButton'),emailStatus:$('#emailStatus'),emailProfileSummary:$('#emailProfileSummary'),
- favoritesShortcut:$('#favoritesShortcut'),bestDiscountShortcut:$('#bestDiscountShortcut'),financingShortcut:$('#financingShortcut'),favoriteCount:$('#favoriteCount'),
- mapStatus:$('#mapStatus'),propertyMap:$('#propertyMap'),loadMoreMapButton:$('#loadMoreMapButton'),
- loadingState:$('#loadingState'),errorState:$('#errorState'),errorText:$('#errorText'),emptyState:$('#emptyState'),cardsGrid:$('#cardsGrid'),loadMoreButton:$('#loadMoreButton'),retryButton:$('#retryButton'),resultsMeta:$('#resultsMeta'),
- galleryModal:$('#galleryModal'),galleryTitle:$('#galleryTitle'),gallerySubtitle:$('#gallerySubtitle'),galleryLoading:$('#galleryLoading'),galleryGrid:$('#galleryGrid'),galleryEmpty:$('#galleryEmpty'),galleryOfficialLink:$('#galleryOfficialLink'),toast:$('#toast')
-};
-const state={properties:[],filtered:[],favorites:new Set(),visibleCount:24,fetchedAt:null,updatedAt:null,statesMeta:[],loading:false,workerRegistration:null,map:null,mapGroup:null,mapSeq:0,mapRequested:20,mediaCache:new Map()};
-const brl=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:2});
-const nf=new Intl.NumberFormat('pt-BR');
-const df=new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
-const dtf=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-const safeJson=(v,f)=>{try{return JSON.parse(v)}catch{return f}};
-const escapeHtml=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-const normalize=(v='')=>String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const propKey=(p)=>`${p.uf||''}:${p.numeroImovel||''}`;
-const money=(v)=>Number.isFinite(v)?brl.format(v):'Sob consulta';
-const number=(v,d=0)=>Number.isFinite(v)?v.toLocaleString('pt-BR',{maximumFractionDigits:d}):'—';
-const date=(v)=>{if(!v)return'—';const d=new Date(String(v).length===10?`${v}T12:00:00-03:00`:v);return Number.isNaN(d.getTime())?'—':df.format(d)};
-const dateTime=(v)=>{if(!v)return'—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':dtf.format(d).replace(',', ' às')};
-const yes=(v)=>{const n=normalize(v);return n.includes('sim')||n.includes('permit')||n.includes('aceit')};
-const no=(v)=>normalize(v).includes('nao');
-const uniq=(a)=>[...new Set(a.filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y),'pt-BR'));
-const options=(vals,label,fmt=v=>v)=>`<option value="">${escapeHtml(label)}</option>${vals.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(fmt(v))}</option>`).join('')}`;
-function toast(msg){els.toast.textContent=msg;els.toast.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>els.toast.classList.remove('show'),3500)}
-function banner(msg,type='success'){els.actionBanner.textContent=msg;els.actionBanner.className=`action-banner ${type}`;els.actionBanner.classList.remove('hidden')}
-function setLoading(v){state.loading=v;els.refreshButton.disabled=v;els.loadingState.classList.toggle('hidden',!v);if(v){els.errorState.classList.add('hidden');els.emptyState.classList.add('hidden');els.cardsGrid.classList.add('hidden')}}
-function parseFallback(p){const t=String(p.descricao||'');const int=(r)=>{const m=t.match(r);return m?Number(m[1]):null};const fl=(r)=>{const m=t.match(r);return m?Number(String(m[1]).replace('.','').replace(',','.')):null};if(!p.tipoImovel&&t.includes(','))p.tipoImovel=t.split(',',1)[0].trim();if(!Number.isFinite(p.quartos))p.quartos=int(/(\d+)\s*qto\(s\)/i);if(!Number.isFinite(p.vagas))p.vagas=int(/(\d+)\s*vaga\(s\)/i);if(!Number.isFinite(p.banheiros))p.banheiros=int(/(\d+)\s*(?:WC|banheiro)/i)??((t.match(/\bWC\b/gi)||[]).length||null);if(!Number.isFinite(p.areaTotal))p.areaTotal=fl(/([\d.,]+)\s+de\s+[aá]rea\s+total/i);if(!Number.isFinite(p.areaPrivativa))p.areaPrivativa=fl(/([\d.,]+)\s+de\s+[aá]rea\s+privativa/i);if(!Number.isFinite(p.areaTerreno))p.areaTerreno=fl(/([\d.,]+)\s+de\s+[aá]rea\s+(?:do\s+)?terreno/i);if(!Number.isFinite(p.precoM2)&&Number.isFinite(p.preco)&&p.areaPrivativa>0)p.precoM2=Math.round(p.preco/p.areaPrivativa*100)/100;p.isNew=Boolean(p.newOnLatestUpdate);p.detectedAt=p.firstSeen?`${p.firstSeen}T12:00:00-03:00`:null;return p}
-function loadLocal(){state.favorites=new Set(safeJson(localStorage.getItem(STORAGE.favorites),[])||[])}
-function populatePrimary(){els.stateSelect.innerHTML=options(uniq(state.properties.map(p=>p.uf)),'Todos os estados',uf=>`${UF_NAMES[uf]||uf} (${uf})`);els.typeSelect.innerHTML=options(uniq(state.properties.map(p=>p.tipoImovel)),'Todos os tipos');els.modalitySelect.innerHTML=options(uniq(state.properties.map(p=>p.modalidade)),'Todas as modalidades')}
-function populateCities(preserve=true){const cur=preserve?els.citySelect.value:'',uf=els.stateSelect.value,cities=uniq(state.properties.filter(p=>!uf||p.uf===uf).map(p=>p.cidade));els.citySelect.innerHTML=options(cities,'Todas as cidades');if(cur&&cities.includes(cur))els.citySelect.value=cur}
-function populateNeighborhoods(preserve=true){const cur=preserve?els.neighborhoodSelect.value:'',uf=els.stateSelect.value,city=els.citySelect.value,n=uniq(state.properties.filter(p=>(!uf||p.uf===uf)&&(!city||p.cidade===city)).map(p=>p.bairro));els.neighborhoodSelect.innerHTML=options(n,'Todos os bairros');if(cur&&n.includes(cur))els.neighborhoodSelect.value=cur}
-function getFilters(){return{q:els.searchInput.value.trim(),state:els.stateSelect.value,city:els.citySelect.value,neighborhood:els.neighborhoodSelect.value,type:els.typeSelect.value,sort:els.sortSelect.value,minPrice:Number(els.minPriceInput.value||0),maxPrice:Number(els.maxPriceInput.value||0),minDiscount:Number(els.minDiscountInput.value||0),bedrooms:Number(els.bedroomsSelect.value||0),bathrooms:Number(els.bathroomsSelect.value||0),parking:Number(els.parkingSelect.value||0),financing:els.financingSelect.value,modality:els.modalitySelect.value,minArea:Number(els.minAreaInput.value||0),maxArea:Number(els.maxAreaInput.value||0),onlyNew:els.onlyNewInput.checked,onlyFavorites:els.onlyFavoritesInput.checked}}
-function matches(p,f){if(f.state&&p.uf!==f.state||f.city&&p.cidade!==f.city||f.neighborhood&&p.bairro!==f.neighborhood||f.type&&p.tipoImovel!==f.type||f.modality&&p.modalidade!==f.modality)return false;if(f.q&&!normalize([p.bairro,p.endereco,p.modalidade,p.numeroImovel,p.cidade,p.descricao].join(' ')).includes(normalize(f.q)))return false;for(const [fk,pk,op] of [['minPrice','preco','min'],['maxPrice','preco','max'],['minDiscount','desconto','min'],['bedrooms','quartos','min'],['bathrooms','banheiros','min'],['parking','vagas','min'],['minArea','areaPrivativa','min'],['maxArea','areaPrivativa','max']]){const lim=f[fk];if(lim>0&&(!Number.isFinite(p[pk])||(op==='min'?p[pk]<lim:p[pk]>lim)))return false}if(f.financing==='sim'&&!yes(p.financiamento)||f.financing==='nao'&&!no(p.financiamento)||f.onlyNew&&!p.isNew||f.onlyFavorites&&!state.favorites.has(propKey(p)))return false;return true}
-function labels(f){const a=[];if(f.q)a.push(`Busca: ${f.q}`);if(f.state)a.push(`${UF_NAMES[f.state]||f.state} (${f.state})`);if(f.city)a.push(f.city);if(f.neighborhood)a.push(f.neighborhood);if(f.type)a.push(f.type);if(f.minPrice)a.push(`≥ ${money(f.minPrice)}`);if(f.maxPrice)a.push(`≤ ${money(f.maxPrice)}`);if(f.minDiscount)a.push(`${f.minDiscount}%+ desconto`);if(f.bedrooms)a.push(`${f.bedrooms}+ quartos`);if(f.bathrooms)a.push(`${f.bathrooms}+ WC`);if(f.parking)a.push(`${f.parking}+ vagas`);if(f.financing==='sim')a.push('Com financiamento');if(f.financing==='nao')a.push('Sem financiamento');if(f.modality)a.push(f.modality);if(f.minArea)a.push(`${f.minArea} m²+`);if(f.maxArea)a.push(`até ${f.maxArea} m²`);if(f.onlyNew)a.push('Somente novos');if(f.onlyFavorites)a.push('Favoritos');return a}
-function emailFilters(f){const o={};if(f.q)o.search=f.q;for(const k of ['state','city','neighborhood','type','modality','financing'])if(f[k])o[k]=f[k];for(const k of ['minPrice','maxPrice','minDiscount','bedrooms','bathrooms','parking','minArea','maxArea'])if(f[k]>0)o[k]=f[k];return o}
-function updateChips(f){const a=labels(f);els.activeFilters.classList.toggle('hidden',!a.length);els.activeFilters.innerHTML=a.map(x=>`<span>${escapeHtml(x)}</span>`).join('');const mailLabels=labels({...f,sort:'recent',onlyNew:false,onlyFavorites:false});els.emailProfileSummary.innerHTML=(mailLabels.length?mailLabels:['Todo o Brasil']).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}
-function syncUrl(f){const p=new URLSearchParams();const m={q:f.q,uf:f.state,city:f.city,bairro:f.neighborhood,type:f.type,sort:f.sort!=='recent'?f.sort:'',minPrice:f.minPrice||'',maxPrice:f.maxPrice||'',minDiscount:f.minDiscount||'',beds:f.bedrooms||'',baths:f.bathrooms||'',parking:f.parking||'',financing:f.financing,modality:f.modality,minArea:f.minArea||'',maxArea:f.maxArea||'',new:f.onlyNew?'1':'',fav:f.onlyFavorites?'1':''};Object.entries(m).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)p.set(k,String(v))});const u=new URL(location.href);u.search=p.toString();history.replaceState(null,'',u)}
-function applyUrl(){const p=new URLSearchParams(location.search);const set=(el,k)=>{if(p.has(k))el.value=p.get(k)};set(els.searchInput,'q');set(els.stateSelect,'uf');populateCities(false);set(els.citySelect,'city');populateNeighborhoods(false);set(els.neighborhoodSelect,'bairro');set(els.typeSelect,'type');set(els.sortSelect,'sort');set(els.minPriceInput,'minPrice');set(els.maxPriceInput,'maxPrice');set(els.minDiscountInput,'minDiscount');set(els.bedroomsSelect,'beds');set(els.bathroomsSelect,'baths');set(els.parkingSelect,'parking');set(els.financingSelect,'financing');set(els.modalitySelect,'modality');set(els.minAreaInput,'minArea');set(els.maxAreaInput,'maxArea');els.onlyNewInput.checked=p.get('new')==='1';els.onlyFavoritesInput.checked=p.get('fav')==='1'}
-function sortResults(a,sort){const n=(v,fb)=>Number.isFinite(v)?v:fb;if(sort==='price-asc')return a.sort((x,y)=>n(x.preco,Infinity)-n(y.preco,Infinity));if(sort==='price-desc')return a.sort((x,y)=>n(y.preco,-Infinity)-n(x.preco,-Infinity));if(sort==='discount-desc')return a.sort((x,y)=>n(y.desconto,-Infinity)-n(x.desconto,-Infinity));if(sort==='sqm-asc')return a.sort((x,y)=>n(x.precoM2,Infinity)-n(y.precoM2,Infinity));if(sort==='area-desc')return a.sort((x,y)=>n(y.areaPrivativa,-Infinity)-n(x.areaPrivativa,-Infinity));return a.sort((x,y)=>String(y.firstSeen||'').localeCompare(String(x.firstSeen||''))||String(y.numeroImovel||'').localeCompare(String(x.numeroImovel||'')))}
-function featureTags(p){const a=[];if(p.tipoImovel)a.push(p.tipoImovel);if(Number.isFinite(p.quartos))a.push(`${p.quartos} qto${p.quartos===1?'':'s'}`);if(Number.isFinite(p.banheiros))a.push(`${p.banheiros} WC`);if(Number.isFinite(p.vagas)&&p.vagas>0)a.push(`${p.vagas} vaga${p.vagas===1?'':'s'}`);if(Number.isFinite(p.areaPrivativa))a.push(`${number(p.areaPrivativa,1)} m² priv.`);return a}
-function cardHtml(p){const key=propKey(p),fav=state.favorites.has(key),photo=state.mediaCache.get(key)?.[0];return `<article class="property-card" data-key="${escapeHtml(key)}">${photo?`<img class="property-thumb" src="${escapeHtml(photo)}" alt="Foto do imóvel" loading="lazy" referrerpolicy="no-referrer">`:''}<div class="card-top ${photo?'has-photo':''}"><div class="card-badges"><span class="badge badge--modality">${escapeHtml(p.modalidade||'Venda CAIXA')}</span><div class="card-badge-actions">${p.isNew?'<span class="badge badge--new">Novo</span>':''}<button class="favorite-button ${fav?'is-favorite':''}" data-favorite="${escapeHtml(key)}" type="button" aria-label="Favoritar">♥</button></div></div><div class="card-city">${escapeHtml(p.cidade||'')} • ${escapeHtml(p.uf||'')}</div><h3 class="card-neighborhood">${escapeHtml(p.bairro||p.tipoImovel||'Imóvel')}</h3><div class="property-features">${featureTags(p).map(x=>`<span>${escapeHtml(x)}</span>`).join('')}</div><span class="price-label">Preço de venda</span><div class="price-row"><strong class="price">${money(p.preco)}</strong><span class="discount">${number(p.desconto,2)}% abaixo da avaliação</span></div>${Number.isFinite(p.precoM2)?`<div class="sqm-price">${money(p.precoM2)} / m² privativo</div>`:''}</div><div class="card-body"><div class="info-grid"><div class="info-item"><span>Avaliação</span><strong>${money(p.valorAvaliacao)}</strong></div><div class="info-item"><span>Nº do imóvel</span><strong>${escapeHtml(p.numeroImovel||'—')}</strong></div><div class="info-item"><span>Financiamento</span><strong>${escapeHtml(p.financiamento||'Não informado')}</strong></div><div class="info-item"><span>Área total</span><strong>${Number.isFinite(p.areaTotal)?`${number(p.areaTotal,1)} m²`:'—'}</strong></div></div><div class="address">${escapeHtml(p.endereco||'Endereço não informado')}</div><div class="description">${escapeHtml(p.descricao||'')}</div><div class="card-footer"><span class="detected-date">Detectado em ${date(p.firstSeen)}</span><div class="card-links"><button class="photo-button" data-photos="${escapeHtml(key)}" type="button">Fotos</button><a class="card-link card-link--secondary" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.endereco,p.bairro,p.cidade,p.uf].filter(Boolean).join(', '))}" target="_blank" rel="noopener">Mapa ↗</a><a class="card-link" href="${escapeHtml(p.link||'#')}" target="_blank" rel="noopener">Ver na CAIXA ↗</a></div></div></div></article>`}
-function renderCards(){if(!state.filtered.length){els.cardsGrid.classList.add('hidden');els.emptyState.classList.remove('hidden');els.loadMoreButton.classList.add('hidden');return}els.emptyState.classList.add('hidden');els.cardsGrid.classList.remove('hidden');const shown=state.filtered.slice(0,state.visibleCount);els.cardsGrid.innerHTML=shown.map(cardHtml).join('');els.loadMoreButton.classList.toggle('hidden',shown.length>=state.filtered.length);els.loadMoreButton.textContent=`Mostrar mais (${nf.format(Math.max(0,state.filtered.length-shown.length))})`;els.favoriteCount.textContent=`${state.favorites.size} salvo${state.favorites.size===1?'':'s'}`}
-function renderStats(f){els.totalStat.textContent=nf.format(state.properties.length);els.filteredStat.textContent=nf.format(state.filtered.length);els.newStat.textContent=nf.format(state.properties.filter(p=>p.isNew).length);const max=Math.max(...state.filtered.map(p=>Number(p.desconto)||0),0);els.discountStat.textContent=`${number(max,2)}%`;const scope=[f.state?`${UF_NAMES[f.state]} (${f.state})`:'Brasil',f.city,f.neighborhood,f.type].filter(Boolean).join(' • ');els.resultsMeta.textContent=`${scope} • ${nf.format(state.filtered.length)} resultado${state.filtered.length===1?'':'s'} • verificação ${dateTime(state.fetchedAt)}`}
-function applyFilters({reset=true,sync=true}={}){if(reset)state.visibleCount=24;const f=getFilters();state.filtered=sortResults(state.properties.filter(p=>matches(p,f)),f.sort);updateChips(f);renderStats(f);renderCards();if(sync)syncUrl(f);updateDeviceAlertStatus();scheduleMap();}
-function clearFilters(){for(const el of [els.searchInput,els.stateSelect,els.citySelect,els.neighborhoodSelect,els.typeSelect,els.minPriceInput,els.maxPriceInput,els.minDiscountInput,els.bedroomsSelect,els.bathroomsSelect,els.parkingSelect,els.financingSelect,els.modalitySelect,els.minAreaInput,els.maxAreaInput])el.value='';els.sortSelect.value='recent';els.onlyNewInput.checked=false;els.onlyFavoritesInput.checked=false;populateCities(false);populateNeighborhoods(false);applyFilters()}
-async function loadData(showMessage=false){setLoading(true);try{const r=await fetch(`${DATA_URL}?t=${Date.now()}`,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);const payload=await r.json();state.properties=(Array.isArray(payload.properties)?payload.properties:[]).map(parseFallback);state.fetchedAt=payload.fetchedAt||payload.updatedAt;state.updatedAt=payload.updatedAt;state.statesMeta=payload.states||[];populatePrimary();populateCities(false);populateNeighborhoods(false);applyUrl();els.sourceLine.textContent=`Fonte oficial CAIXA • 27 UFs • ${nf.format(state.properties.length)} imóveis carregados • última verificação ${dateTime(state.fetchedAt)}`;applyFilters({sync:false});syncUrl(getFilters());syncWorkerBaseline();if(showMessage)toast(`Base verificada: ${dateTime(state.fetchedAt)}.`)}catch(e){console.error(e);els.errorText.textContent='Não foi possível carregar a base nacional publicada. Tente novamente.';els.errorState.classList.remove('hidden')}finally{setLoading(false)}}
-function saveFavorites(){localStorage.setItem(STORAGE.favorites,JSON.stringify([...state.favorites]))}
-function toggleFavorite(key){state.favorites.has(key)?state.favorites.delete(key):state.favorites.add(key);saveFavorites();applyFilters({reset:false})}
-function exportCsv(){const rows=state.filtered;if(!rows.length)return toast('Não há resultados para exportar.');const cols=[['UF','uf'],['Cidade','cidade'],['Bairro','bairro'],['Tipo','tipoImovel'],['Preço','preco'],['Avaliação','valorAvaliacao'],['Desconto','desconto'],['Quartos','quartos'],['Banheiros','banheiros'],['Vagas','vagas'],['Área privativa','areaPrivativa'],['Modalidade','modalidade'],['Financiamento','financiamento'],['Endereço','endereco'],['Nº imóvel','numeroImovel'],['Link','link']];const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;const text='\ufeff'+[cols.map(c=>esc(c[0])).join(';'),...rows.map(r=>cols.map(c=>esc(r[c[1]])).join(';'))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));a.download=`radar-caixa-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href)}
-async function shareSearch(){try{await navigator.clipboard.writeText(location.href);toast('Link da pesquisa copiado.')}catch{toast('Copie o endereço do navegador para compartilhar esta pesquisa.')}}
-async function registerWorker(){if(!('serviceWorker'in navigator))return;try{state.workerRegistration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready}catch(e){console.warn(e)}}
-function currentDeviceProfile(){const f=getFilters();return{state:f.state,city:f.city,neighborhood:f.neighborhood,type:f.type,modality:f.modality,minPrice:f.minPrice,maxPrice:f.maxPrice,minDiscount:f.minDiscount,bedrooms:f.bedrooms,bathrooms:f.bathrooms,parking:f.parking,financing:f.financing,minArea:f.minArea,maxArea:f.maxArea}}
-function alertsEnabled(){return localStorage.getItem(STORAGE.alertsEnabled)==='1'}
-function updateDeviceAlertStatus(){const enabled=alertsEnabled();const p=safeJson(localStorage.getItem(STORAGE.alertProfile),{})||{};els.alertActionButton.textContent=enabled?'Desativar':'Ativar';els.notificationButton.innerHTML=enabled?'<span class="button-icon">✓</span> Alertas ativos':'<span class="button-icon">◉</span> Ativar alertas';els.alertStatus.textContent=enabled?`Alertas ativos para ${[p.state,p.city,p.type].filter(Boolean).join(' • ')||'todo o Brasil'}. O navegador tentará verificar novas oportunidades em segundo plano.`:'Ative as notificações do navegador usando os filtros atuais.'}
-async function activateDeviceAlerts(){if(!('Notification'in window))return toast('Este navegador não oferece notificações.');const perm=await Notification.requestPermission();if(perm!=='granted')return toast('Permissão de notificações não concedida.');const p=currentDeviceProfile();localStorage.setItem(STORAGE.alertProfile,JSON.stringify(p));localStorage.setItem(STORAGE.alertsEnabled,'1');const reg=state.workerRegistration||await navigator.serviceWorker.ready;reg.active?.postMessage({type:'SET_ALERT_PROFILE',alertProfile:p});try{if('periodicSync'in reg)await reg.periodicSync.register('check-properties',{minInterval:24*60*60*1000})}catch{}updateDeviceAlertStatus();toast('Alertas deste dispositivo ativados.')}
-function deactivateDeviceAlerts(){localStorage.setItem(STORAGE.alertsEnabled,'0');updateDeviceAlertStatus();toast('Alertas deste dispositivo desativados.')}
-function syncWorkerBaseline(){if(!state.workerRegistration)return;const p=safeJson(localStorage.getItem(STORAGE.alertProfile),{})||{};state.workerRegistration.active?.postMessage({type:'SYNC_CURRENT',ids:state.properties.map(propKey),alertProfile:p})}
-async function subscribeEmail(ev){ev.preventDefault();const email=els.emailInput.value.trim();if(!email)return;els.emailSubscribeButton.disabled=true;els.emailStatus.className='email-status';els.emailStatus.textContent='Cadastrando alerta…';try{const r=await fetch(`${API_BASE}/alert-subscribe`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,filters:emailFilters(getFilters())})});const body=await r.json().catch(()=>({}));if(r.ok){els.emailStatus.className='email-status success';els.emailStatus.textContent=body.message||'Confira seu e-mail para confirmar o alerta.';toast('Alerta por e-mail cadastrado.')}else if(r.status===503){els.emailStatus.className='email-status error';els.emailStatus.textContent='Seu perfil foi registrado, mas o serviço de envio ainda está em configuração. Tente novamente após a ativação do provedor de e-mail.'}else throw new Error(body.message||'Não foi possível cadastrar o alerta.')}catch(e){els.emailStatus.className='email-status error';els.emailStatus.textContent=e.message||'Falha ao cadastrar alerta.'}finally{els.emailSubscribeButton.disabled=false}}
-async function processActionLink(){const u=new URL(location.href),confirm=u.searchParams.get('confirm'),unsubscribe=u.searchParams.get('unsubscribe');if(!confirm&&!unsubscribe)return;const action=confirm?'confirm':'unsubscribe',token=confirm||unsubscribe;try{const r=await fetch(`${API_BASE}/alert-manage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,token})});const body=await r.json().catch(()=>({}));banner(body.message|| (r.ok?'Solicitação concluída.':'Não foi possível concluir o link.'),r.ok?'success':'error')}catch{banner('Não foi possível processar este link agora.','error')}u.searchParams.delete('confirm');u.searchParams.delete('unsubscribe');history.replaceState(null,'',u)}
-function initMap(){if(!window.L||state.map)return;state.map=L.map('propertyMap',{zoomControl:true,scrollWheelZoom:false}).setView([-14.3,-51.9],4);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(state.map);state.mapGroup=L.layerGroup().addTo(state.map)}
-function clearMap(){state.mapGroup?.clearLayers()}
-function stateOverview(){clearMap();const counts={};for(const p of state.filtered)counts[p.uf]=(counts[p.uf]||0)+1;const bounds=[];for(const [uf,count] of Object.entries(counts)){const c=STATE_CENTERS[uf];if(!c)continue;bounds.push(c);const radius=Math.max(7,Math.min(22,7+Math.sqrt(count)*.45));const marker=L.circleMarker(c,{radius,weight:2,fillOpacity:.78});marker.bindPopup(`<div class="map-popup"><strong>${escapeHtml(UF_NAMES[uf]||uf)} (${uf})</strong><small>${nf.format(count)} imóvel${count===1?'':'eis'}</small><a href="#" data-state-map="${uf}">Filtrar este Estado</a></div>`);marker.on('popupopen',()=>{setTimeout(()=>{document.querySelector(`[data-state-map="${uf}"]`)?.addEventListener('click',e=>{e.preventDefault();els.stateSelect.value=uf;populateCities(false);populateNeighborhoods(false);applyFilters();state.map.closePopup()})},0)});marker.addTo(state.mapGroup)}if(bounds.length)state.map.fitBounds(bounds,{padding:[18,18]});els.mapStatus.textContent=`Visão nacional por Estado • ${nf.format(state.filtered.length)} imóveis compatíveis. Selecione uma UF para mostrar pontos de imóveis.`;els.loadMoreMapButton.classList.add('hidden')}
-let mapTimer;
-function scheduleMap(){clearTimeout(mapTimer);mapTimer=setTimeout(renderMap,550)}
-async function renderMap(){initMap();if(!state.map)return;const f=getFilters();if(!f.state){stateOverview();return}const seq=++state.mapSeq,limit=Math.min(state.mapRequested,state.filtered.length,20),items=state.filtered.slice(0,limit);clearMap();if(!items.length){els.mapStatus.textContent='Nenhum imóvel para mostrar com os filtros atuais.';els.loadMoreMapButton.classList.add('hidden');return}els.mapStatus.textContent=`Localizando imóveis de ${UF_NAMES[f.state]||f.state}${f.city?` • ${f.city}`:''}…`;try{const r=await fetch(`${API_BASE}/map-enrich`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({properties:items.map(p=>({key:propKey(p),numeroImovel:p.numeroImovel,uf:p.uf,cidade:p.cidade,bairro:p.bairro,endereco:p.endereco,preco:p.preco,desconto:p.desconto,tipoImovel:p.tipoImovel,link:p.link}))})});const body=await r.json();if(seq!==state.mapSeq)return;if(!r.ok)throw new Error(body.message||'Falha ao georreferenciar.');const pts=body.points||[],bounds=[];for(const p of pts){const c=[p.latitude,p.longitude];bounds.push(c);const prec=p.precision==='endereco'?'endereço':p.precision==='bairro'?'bairro aproximado':'cidade aproximada';const m=L.marker(c).bindPopup(`<div class="map-popup"><strong>${escapeHtml(p.tipoImovel||'Imóvel')} • ${money(Number(p.preco))}</strong><small>${escapeHtml(p.cidade||'')} • ${escapeHtml(p.bairro||'')}</small><small>${escapeHtml(p.endereco||'')}</small><div class="precision">Localização: ${escapeHtml(prec)}</div><a href="${escapeHtml(p.link||'#')}" target="_blank" rel="noopener">Ver na CAIXA</a></div>`);m.addTo(state.mapGroup)}if(bounds.length)state.map.fitBounds(bounds,{padding:[28,28],maxZoom:15});else state.map.setView(STATE_CENTERS[f.state]||[-14.3,-51.9],6);els.mapStatus.textContent=`${pts.length} ponto${pts.length===1?'':'s'} no mapa para os primeiros ${limit} resultado${limit===1?'':'s'}${body.geocodedNow?` • ${body.geocodedNow} nova(s) localização(ões) adicionada(s) ao cache`:''}.`;els.loadMoreMapButton.classList.toggle('hidden',pts.length>=limit||limit>=20)}catch(e){console.error(e);els.mapStatus.textContent='Não foi possível atualizar os pontos agora. A lista de imóveis continua disponível abaixo.'}}
-async function openGallery(p){els.galleryModal.classList.remove('hidden');document.body.style.overflow='hidden';els.galleryTitle.textContent=`${p.tipoImovel||'Imóvel'} em ${p.bairro||p.cidade}`;els.gallerySubtitle.textContent=`${p.cidade} • ${p.uf} • Nº ${p.numeroImovel}`;els.galleryOfficialLink.href=p.link||'#';els.galleryLoading.classList.remove('hidden');els.galleryGrid.classList.add('hidden');els.galleryEmpty.classList.add('hidden');const key=propKey(p),cached=state.mediaCache.get(key);if(cached?.length){showGalleryImages(cached);return}try{const r=await fetch(`${API_BASE}/property-media`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key,numeroImovel:p.numeroImovel,uf:p.uf,link:p.link})});const body=await r.json();if(!r.ok)throw new Error(body.message||'Falha ao carregar fotos.');const photos=Array.isArray(body.photos)?body.photos:[];state.mediaCache.set(key,photos);if(photos.length)showGalleryImages(photos);else{els.galleryLoading.classList.add('hidden');els.galleryEmpty.classList.remove('hidden')}renderCards();scheduleMap()}catch(e){els.galleryLoading.classList.add('hidden');els.galleryEmpty.textContent=e.message||'Não foi possível carregar as fotos agora.';els.galleryEmpty.classList.remove('hidden')}}
-function showGalleryImages(photos){els.galleryLoading.classList.add('hidden');els.galleryEmpty.classList.add('hidden');els.galleryGrid.innerHTML=photos.map((u,i)=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><img src="${escapeHtml(u)}" alt="Foto ${i+1} do imóvel" loading="lazy" referrerpolicy="no-referrer"></a>`).join('');els.galleryGrid.classList.remove('hidden')}
-function closeGallery(){els.galleryModal.classList.add('hidden');document.body.style.overflow=''}
-function bindEvents(){let inputTimer;const change=()=>applyFilters();els.searchInput.addEventListener('input',()=>{clearTimeout(inputTimer);inputTimer=setTimeout(change,250)});for(const el of [els.typeSelect,els.sortSelect,els.minPriceInput,els.maxPriceInput,els.minDiscountInput,els.bedroomsSelect,els.bathroomsSelect,els.parkingSelect,els.financingSelect,els.modalitySelect,els.minAreaInput,els.maxAreaInput,els.onlyNewInput,els.onlyFavoritesInput])el.addEventListener('change',change);els.stateSelect.addEventListener('change',()=>{populateCities(false);populateNeighborhoods(false);state.mapRequested=20;applyFilters()});els.citySelect.addEventListener('change',()=>{populateNeighborhoods(false);state.mapRequested=20;applyFilters()});els.neighborhoodSelect.addEventListener('change',change);els.clearFilters.addEventListener('click',clearFilters);els.refreshButton.addEventListener('click',()=>loadData(true));els.retryButton.addEventListener('click',()=>loadData());els.loadMoreButton.addEventListener('click',()=>{state.visibleCount+=24;renderCards()});els.exportCsvButton.addEventListener('click',exportCsv);els.shareSearchButton.addEventListener('click',shareSearch);els.emailAlertForm.addEventListener('submit',subscribeEmail);els.favoritesShortcut.addEventListener('click',()=>{els.onlyFavoritesInput.checked=!els.onlyFavoritesInput.checked;applyFilters()});els.bestDiscountShortcut.addEventListener('click',()=>{els.sortSelect.value='discount-desc';applyFilters()});els.financingShortcut.addEventListener('click',()=>{els.financingSelect.value='sim';applyFilters()});els.useCurrentFiltersButton.addEventListener('click',()=>{localStorage.setItem(STORAGE.alertProfile,JSON.stringify(currentDeviceProfile()));updateDeviceAlertStatus();state.workerRegistration?.active?.postMessage({type:'SET_ALERT_PROFILE',alertProfile:currentDeviceProfile()});toast('Filtros atuais salvos para o alerta deste dispositivo.')});els.alertActionButton.addEventListener('click',()=>alertsEnabled()?deactivateDeviceAlerts():activateDeviceAlerts());els.notificationButton.addEventListener('click',()=>alertsEnabled()?document.querySelector('#alertsPanel').scrollIntoView({behavior:'smooth'}):activateDeviceAlerts());els.loadMoreMapButton.addEventListener('click',renderMap);els.cardsGrid.addEventListener('click',e=>{const fav=e.target.closest('[data-favorite]');if(fav){toggleFavorite(fav.dataset.favorite);return}const ph=e.target.closest('[data-photos]');if(ph){const p=state.properties.find(x=>propKey(x)===ph.dataset.photos);if(p)openGallery(p)}});els.galleryModal.addEventListener('click',e=>{if(e.target.closest('[data-close-modal]'))closeGallery()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!els.galleryModal.classList.contains('hidden'))closeGallery()})}
-async function init(){loadLocal();bindEvents();await processActionLink();await registerWorker();updateDeviceAlertStatus();initMap();await loadData();}
-init();
+// Bootstrap robusto do mapa. Carrega Leaflet com múltiplos fallbacks antes de iniciar o app.
+const MAP_STATUS = () => document.querySelector('#mapStatus');
+
+function addLeafletCss() {
+  if (document.querySelector('link[data-radar-leaflet-fallback]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+  link.dataset.radarLeafletFallback = '1';
+  link.onerror = () => {
+    link.onerror = null;
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
+  };
+  document.head.appendChild(link);
+}
+
+function loadScript(url, timeoutMs = 9000) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      s.remove();
+      reject(new Error(`Timeout carregando ${url}`));
+    }, timeoutMs);
+    s.src = url;
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.onload = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    s.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      s.remove();
+      reject(new Error(`Falha carregando ${url}`));
+    };
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureLeaflet() {
+  addLeafletCss();
+  if (window.L) return true;
+  const status = MAP_STATUS();
+  if (status) status.textContent = 'Carregando mapa…';
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  ];
+  for (const url of urls) {
+    try {
+      await loadScript(url);
+      if (window.L) return true;
+    } catch (e) {
+      console.warn('[Radar CAIXA] CDN do mapa indisponível:', e.message);
+    }
+  }
+  return false;
+}
+
+function hardenTileLayer() {
+  if (!window.L || window.L.__radarTilePatch) return;
+  const original = window.L.tileLayer;
+  window.L.tileLayer = function(url, options) {
+    // Evita dependência dos subdomínios a/b/c, que falham em algumas redes móveis/DNS.
+    if (typeof url === 'string' && url.includes('{s}.tile.openstreetmap.org')) {
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+    const layer = original.call(this, url, options);
+    let errors = 0;
+    layer.on('tileerror', () => {
+      errors += 1;
+      if (errors === 4) {
+        const status = MAP_STATUS();
+        if (status) status.textContent = 'Mapa carregado, mas a rede está bloqueando algumas imagens cartográficas. Tentando novamente…';
+      }
+    });
+    return layer;
+  };
+  window.L.__radarTilePatch = true;
+}
+
+(async () => {
+  const ok = await ensureLeaflet();
+  if (!ok) {
+    const status = MAP_STATUS();
+    if (status) status.textContent = 'Não foi possível carregar a biblioteca do mapa nesta rede. Recarregue a página ou tente outra conexão.';
+    console.error('[Radar CAIXA] Leaflet não pôde ser carregado por nenhum CDN.');
+    // O restante do aplicativo deve continuar funcionando mesmo sem o mapa.
+  } else {
+    hardenTileLayer();
+  }
+  try {
+    await import('./app-core.js?mapfix=20260915-2');
+  } catch (e) {
+    console.error('[Radar CAIXA] Falha ao iniciar aplicação:', e);
+    const status = MAP_STATUS();
+    if (status && ok) status.textContent = 'O mapa foi carregado, mas ocorreu uma falha ao iniciar os dados. Recarregue a página.';
+  }
+})();
