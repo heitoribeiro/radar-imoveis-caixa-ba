@@ -1,9 +1,9 @@
-const CACHE = 'radar-caixa-ba-pages-v3';
+const CACHE = 'radar-caixa-brasil-pages-v4';
 const BASE = new URL('./', self.location.href);
 const url = (path) => new URL(path, BASE).toString();
 const STATIC_ASSETS = [url('./'), url('index.html'), url('styles.css'), url('app.js'), url('manifest.webmanifest'), url('icons/icon-192.png'), url('icons/icon-512.png')];
-const DATA_URL = url('data/imoveis-ba.json');
-const DB_NAME = 'radar-caixa-ba';
+const DATA_URL = url('data/imoveis-brasil.json');
+const DB_NAME = 'radar-caixa-brasil';
 const STORE = 'settings';
 
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())));
@@ -24,9 +24,11 @@ function dbGet(key, fallback) { return openDb().then((db) => new Promise((resolv
 function dbSet(key, value) { return openDb().then((db) => new Promise((resolve, reject) => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(value, key); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); })); }
 function normalize(value='') { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 function yes(value) { const n = normalize(value); return n.includes('sim') || n.includes('permit') || n.includes('aceit'); }
-function no(value) { const n = normalize(value); return n.includes('nao'); }
+function no(value) { return normalize(value).includes('nao'); }
+function keyOf(p) { return `${p.uf || ''}:${p.numeroImovel || ''}`; }
 
 function matchesProfile(p, f = {}) {
+  if (f.state && p.uf !== f.state) return false;
   if (f.city && p.cidade !== f.city) return false;
   if (f.neighborhood && p.bairro !== f.neighborhood) return false;
   if (f.type && p.tipoImovel !== f.type) return false;
@@ -41,15 +43,15 @@ function matchesProfile(p, f = {}) {
   if (f.financing === 'nao' && !no(p.financiamento)) return false;
   return true;
 }
-function profileLabel(p={}) { return p.city || p.type || 'Bahia'; }
+function profileLabel(p={}) { return p.city || p.state || p.type || 'todo o Brasil'; }
 
 async function checkForNewProperties() {
   const response = await fetch(`${DATA_URL}?background=${Date.now()}`, { cache: 'no-store' }); if (!response.ok) return;
   const payload = await response.json(); const properties = Array.isArray(payload.properties) ? payload.properties : [];
-  const currentIds = properties.map((p) => p.numeroImovel); const knownIds = await dbGet('knownIds', []); const alertProfile = await dbGet('alertProfile', {});
+  const currentIds = properties.map(keyOf); const knownIds = await dbGet('knownIds', []); const alertProfile = await dbGet('alertProfile', {});
   if (!knownIds.length) { await dbSet('knownIds', currentIds); return; }
-  const known = new Set(knownIds); const newItems = properties.filter((p) => !known.has(p.numeroImovel) && matchesProfile(p, alertProfile)); await dbSet('knownIds', currentIds);
-  if (newItems.length) await self.registration.showNotification('Novos imóveis compatíveis na CAIXA', { body: `${newItems.length} ${newItems.length === 1 ? 'novo imóvel atende' : 'novos imóveis atendem'} ao seu alerta em ${profileLabel(alertProfile)}.`, icon: url('icons/icon-192.png'), badge: url('icons/icon-192.png'), tag: 'radar-caixa-ba-background', renotify: true, data: { url: BASE.toString() } });
+  const known = new Set(knownIds); const newItems = properties.filter((p) => !known.has(keyOf(p)) && matchesProfile(p, alertProfile)); await dbSet('knownIds', currentIds);
+  if (newItems.length) await self.registration.showNotification('Novos imóveis compatíveis na CAIXA', { body: `${newItems.length} ${newItems.length === 1 ? 'novo imóvel atende' : 'novos imóveis atendem'} ao seu alerta em ${profileLabel(alertProfile)}.`, icon: url('icons/icon-192.png'), badge: url('icons/icon-192.png'), tag: 'radar-caixa-br-background', renotify: true, data: { url: BASE.toString() } });
 }
 
 self.addEventListener('periodicsync', (event) => { if (event.tag === 'check-properties') event.waitUntil(checkForNewProperties()); });
