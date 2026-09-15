@@ -4,11 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#075985" />
-  <meta name="description" content="Encontre imóveis da CAIXA disponíveis para compra na Bahia, filtre oportunidades e receba alertas de novas inclusões." />
+  <meta name="description" content="Encontre imóveis da CAIXA disponíveis para compra em todo o Brasil, filtre oportunidades e acompanhe novas inclusões." />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>Radar de Imóveis CAIXA - Bahia</title>
+  <style>@media(min-width:1181px){.filters-grid--primary{grid-template-columns:minmax(235px,1.5fr) repeat(5,minmax(125px,.82fr))}}</style>
+  <title>Radar de Imóveis CAIXA - Brasil</title>
 </head>
 <body>
   <div class="app-shell">
@@ -19,22 +20,22 @@
             <svg viewBox="0 0 64 64" role="img"><path d="M10 31.5 32 12l22 19.5v21a4.5 4.5 0 0 1-4.5 4.5h-35A4.5 4.5 0 0 1 10 52.5v-21Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/><path d="M24 57V39h16v18" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg>
           </div>
           <div>
-            <div class="eyebrow">Monitor independente • Bahia</div>
+            <div class="eyebrow">Monitor independente • Brasil</div>
             <h1>Radar de Imóveis CAIXA</h1>
           </div>
         </div>
-        <p class="hero__copy">Pesquise imóveis disponíveis, combine filtros de perfil e acompanhe automaticamente as novas oportunidades publicadas na lista oficial.</p>
+        <p class="hero__copy">Pesquise imóveis disponíveis em todo o Brasil, combine filtros de perfil e acompanhe automaticamente as novas oportunidades publicadas nas listas oficiais.</p>
         <div class="hero-actions">
           <button id="refreshButton" class="button button--primary" type="button"><span class="button-icon">↻</span> Verificar atualização</button>
           <button id="notificationButton" class="button button--glass" type="button"><span class="button-icon">◉</span> Ativar alertas</button>
         </div>
-        <div class="source-line" id="sourceLine">Conectando à lista oficial da CAIXA…</div>
+        <div class="source-line" id="sourceLine">Conectando às listas oficiais da CAIXA…</div>
       </div>
     </header>
 
     <main class="content">
       <section class="stats-grid" aria-label="Resumo">
-        <article class="stat-card"><span class="stat-label">Imóveis na Bahia</span><strong id="totalStat">—</strong><span class="stat-foot">na lista atual</span></article>
+        <article class="stat-card"><span class="stat-label">Imóveis no Brasil</span><strong id="totalStat">—</strong><span class="stat-foot">nas listas atuais</span></article>
         <article class="stat-card"><span class="stat-label">Resultados</span><strong id="filteredStat">—</strong><span class="stat-foot">após os filtros</span></article>
         <article class="stat-card stat-card--accent"><span class="stat-label">Novos detectados</span><strong id="newStat">—</strong><span class="stat-foot">na atualização mais recente</span></article>
         <article class="stat-card"><span class="stat-label">Maior desconto</span><strong id="discountStat">—</strong><span class="stat-foot">nos resultados atuais</span></article>
@@ -55,6 +56,7 @@
             <span>Buscar</span>
             <div class="input-with-icon"><span>⌕</span><input id="searchInput" type="search" placeholder="Bairro, endereço, modalidade ou número do imóvel" autocomplete="off" /></div>
           </label>
+          <label class="field"><span>Estado</span><select id="stateSelect"><option value="">Todos os estados</option></select></label>
           <label class="field"><span>Cidade</span><select id="citySelect"><option value="">Todas as cidades</option></select></label>
           <label class="field"><span>Bairro</span><select id="neighborhoodSelect"><option value="">Todos os bairros</option></select></label>
           <label class="field"><span>Tipo de imóvel</span><select id="typeSelect"><option value="">Todos os tipos</option></select></label>
@@ -94,8 +96,8 @@
       <section class="panel alerts-panel" id="alertsPanel">
         <div class="alert-icon">🔔</div>
         <div class="alert-copy">
-          <h2>Alerta de novas oportunidades</h2>
-          <p id="alertStatus">Ative as notificações do navegador. O alerta pode usar a cidade e os filtros atuais.</p>
+          <h2>Alertas neste dispositivo</h2>
+          <p id="alertStatus">Ative as notificações do navegador. O alerta pode usar o estado, cidade e os filtros atuais.</p>
         </div>
         <div class="alert-controls">
           <button id="useCurrentFiltersButton" class="button button--outline" type="button">Usar filtros atuais</button>
@@ -123,7 +125,7 @@
       </section>
 
       <footer class="footer">
-        <p><strong>Fonte de dados:</strong> lista pública de imóveis da CAIXA Econômica Federal.</p>
+        <p><strong>Fonte de dados:</strong> listas públicas de imóveis da CAIXA Econômica Federal.</p>
         <p>Aplicativo independente, sem vínculo oficial com a CAIXA. Confirme disponibilidade, condições, edital, ocupação, débitos e possibilidade de financiamento diretamente na página oficial antes de qualquer decisão de compra.</p>
       </footer>
     </main>
