@@ -1,12 +1,135 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#075985"><title>Radar de Imóveis CAIXA - Bahia</title><link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./assets/app.css"></head><body>
-<header class="hero"><div class="wrap"><div class="brand"><div class="logo">⌂</div><div><div class="eyebrow">Monitor independente • Bahia</div><h1>Radar de Imóveis CAIXA</h1></div></div><p>Pesquise oportunidades da lista pública da CAIXA, aplique filtros detalhados e acompanhe novas inclusões.</p><div class="actions"><button id="refresh" class="btn primary">↻ Verificar atualização</button><button id="export" class="btn secondary">⇩ Exportar resultados</button></div><div id="source" class="source">Carregando dados…</div></div></header>
-<main class="wrap main"><section class="stats"><div class="stat"><span>Imóveis na Bahia</span><strong id="sTotal">—</strong></div><div class="stat"><span>Resultados</span><strong id="sFiltered">—</strong></div><div class="stat"><span>Novos</span><strong id="sNew">—</strong></div><div class="stat"><span>Maior desconto</span><strong id="sDiscount">—</strong></div></section>
-<section class="panel"><div class="panel-head"><h2>Encontre seu imóvel</h2><button id="clear" class="btn outline">Limpar filtros</button></div>
-<div class="filters"><div class="field"><label>Buscar</label><input id="q" placeholder="Bairro, endereço, número ou modalidade"></div><div class="field"><label>Cidade</label><select id="city"><option value="">Todas</option></select></div><div class="field"><label>Tipo</label><select id="type"><option value="">Todos</option></select></div><div class="field"><label>Quartos</label><select id="rooms"><option value="">Qualquer</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option></select></div><div class="field"><label>Ordenar</label><select id="sort"><option value="recent">Mais recentes</option><option value="asc">Menor preço</option><option value="desc">Maior preço</option><option value="discount">Maior desconto</option><option value="area">Maior área privativa</option></select></div></div>
-<div class="filters advanced"><div class="field"><label>Preço mínimo</label><input id="minPrice" type="number" min="0" placeholder="0"></div><div class="field"><label>Preço máximo</label><input id="maxPrice" type="number" min="0" placeholder="250000"></div><div class="field"><label>Desconto mínimo (%)</label><input id="minDiscount" type="number" min="0" max="100" placeholder="30"></div><div class="field"><label>Banheiros</label><select id="baths"><option value="">Qualquer</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option></select></div><div class="field"><label>Vagas</label><select id="parking"><option value="">Qualquer</option><option value="1">1+</option><option value="2">2+</option><option value="3">3+</option></select></div><div class="field"><label>Modalidade</label><select id="modality"><option value="">Todas</option></select></div><div class="field"><label>Financiamento</label><select id="financing"><option value="">Qualquer</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div><div class="field"><label>Área privativa mín. (m²)</label><input id="minArea" type="number" min="0" placeholder="40"></div><div class="field"><label>Bairro</label><select id="neighborhood"><option value="">Todos</option></select></div><div class="field"><label>Visualização</label><select id="view"><option value="all">Todos</option><option value="new">Somente novos</option><option value="favorites">Favoritos</option></select></div></div>
-<div class="filter-actions"><button id="saveSearch" class="btn outline">☆ Salvar busca</button><select id="savedSearches" style="width:auto"><option value="">Buscas salvas</option></select></div></section>
-<div class="results-head"><div><div class="eyebrow" style="color:#718196">Lista atual</div><h2>Imóveis disponíveis</h2></div><div id="meta" style="font-size:12px;color:var(--muted)"></div></div><div id="loading" class="empty">Carregando imóveis…</div><div id="grid" class="grid hidden"></div><div class="more"><button id="more" class="btn outline hidden">Mostrar mais</button></div>
-<div id="comparebar" class="comparebar hidden"><span id="compareText">0 imóveis selecionados</span><div><button id="compareBtn" class="btn primary">Comparar</button> <button id="compareClear" class="btn secondary">Limpar</button></div></div>
-<footer class="footer">Fonte: lista pública de imóveis da CAIXA Econômica Federal. Aplicativo independente, sem vínculo oficial com a CAIXA. Confirme edital, disponibilidade, ocupação, débitos e condições diretamente nos canais oficiais.</footer></main>
-<div id="modal" class="modal hidden"><div class="modalbox"><div class="modalhead"><h2>Comparar imóveis</h2><button id="closeModal" class="btn outline">Fechar</button></div><div id="compareContent"></div></div></div><div id="toast" class="toast"></div>
-<script src="./assets/app.js" defer></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#075985" />
+  <meta name="description" content="Encontre imóveis da CAIXA disponíveis para compra na Bahia, filtre oportunidades e receba alertas de novas inclusões." />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>Radar de Imóveis CAIXA - Bahia</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="hero__inner">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img"><path d="M10 31.5 32 12l22 19.5v21a4.5 4.5 0 0 1-4.5 4.5h-35A4.5 4.5 0 0 1 10 52.5v-21Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/><path d="M24 57V39h16v18" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div class="eyebrow">Monitor independente • Bahia</div>
+            <h1>Radar de Imóveis CAIXA</h1>
+          </div>
+        </div>
+        <p class="hero__copy">Pesquise imóveis disponíveis, combine filtros de perfil e acompanhe automaticamente as novas oportunidades publicadas na lista oficial.</p>
+        <div class="hero-actions">
+          <button id="refreshButton" class="button button--primary" type="button"><span class="button-icon">↻</span> Verificar atualização</button>
+          <button id="notificationButton" class="button button--glass" type="button"><span class="button-icon">◉</span> Ativar alertas</button>
+        </div>
+        <div class="source-line" id="sourceLine">Conectando à lista oficial da CAIXA…</div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="stats-grid" aria-label="Resumo">
+        <article class="stat-card"><span class="stat-label">Imóveis na Bahia</span><strong id="totalStat">—</strong><span class="stat-foot">na lista atual</span></article>
+        <article class="stat-card"><span class="stat-label">Resultados</span><strong id="filteredStat">—</strong><span class="stat-foot">após os filtros</span></article>
+        <article class="stat-card stat-card--accent"><span class="stat-label">Novos detectados</span><strong id="newStat">—</strong><span class="stat-foot">na atualização mais recente</span></article>
+        <article class="stat-card"><span class="stat-label">Maior desconto</span><strong id="discountStat">—</strong><span class="stat-foot">nos resultados atuais</span></article>
+      </section>
+
+      <section class="panel filters-panel">
+        <div class="panel-heading">
+          <div><span class="section-kicker">Busca inteligente</span><h2>Encontre seu imóvel</h2></div>
+          <div class="panel-actions">
+            <button id="shareSearchButton" class="text-button" type="button">Compartilhar busca</button>
+            <button id="exportCsvButton" class="text-button" type="button">Exportar CSV</button>
+            <button id="clearFilters" class="text-button" type="button">Limpar filtros</button>
+          </div>
+        </div>
+
+        <div class="filters-grid filters-grid--primary">
+          <label class="field field--wide">
+            <span>Buscar</span>
+            <div class="input-with-icon"><span>⌕</span><input id="searchInput" type="search" placeholder="Bairro, endereço, modalidade ou número do imóvel" autocomplete="off" /></div>
+          </label>
+          <label class="field"><span>Cidade</span><select id="citySelect"><option value="">Todas as cidades</option></select></label>
+          <label class="field"><span>Bairro</span><select id="neighborhoodSelect"><option value="">Todos os bairros</option></select></label>
+          <label class="field"><span>Tipo de imóvel</span><select id="typeSelect"><option value="">Todos os tipos</option></select></label>
+          <label class="field"><span>Ordenar por</span><select id="sortSelect">
+            <option value="recent">Mais recentes</option>
+            <option value="price-asc">Menor preço</option>
+            <option value="price-desc">Maior preço</option>
+            <option value="discount-desc">Maior desconto</option>
+            <option value="sqm-asc">Menor valor por m²</option>
+            <option value="area-desc">Maior área privativa</option>
+          </select></label>
+        </div>
+
+        <div class="filters-grid filters-grid--secondary">
+          <label class="field"><span>Preço mínimo</span><input id="minPriceInput" type="number" min="0" step="1000" placeholder="Ex.: 80000" inputmode="numeric" /></label>
+          <label class="field"><span>Preço máximo</span><input id="maxPriceInput" type="number" min="0" step="1000" placeholder="Ex.: 250000" inputmode="numeric" /></label>
+          <label class="field"><span>Desconto mínimo (%)</span><input id="minDiscountInput" type="number" min="0" max="100" step="1" placeholder="Ex.: 30" inputmode="decimal" /></label>
+          <label class="field"><span>Quartos</span><select id="bedroomsSelect"><option value="">Qualquer</option><option value="1">1 ou mais</option><option value="2">2 ou mais</option><option value="3">3 ou mais</option><option value="4">4 ou mais</option></select></label>
+          <label class="field"><span>Banheiros / WC</span><select id="bathroomsSelect"><option value="">Qualquer</option><option value="1">1 ou mais</option><option value="2">2 ou mais</option><option value="3">3 ou mais</option></select></label>
+          <label class="field"><span>Vagas</span><select id="parkingSelect"><option value="">Qualquer</option><option value="1">1 ou mais</option><option value="2">2 ou mais</option><option value="3">3 ou mais</option></select></label>
+        </div>
+
+        <details class="advanced-filters" id="advancedFilters">
+          <summary>Mais filtros</summary>
+          <div class="filters-grid filters-grid--advanced">
+            <label class="field"><span>Financiamento</span><select id="financingSelect"><option value="">Qualquer</option><option value="sim">Aceita financiamento</option><option value="nao">Não aceita financiamento</option></select></label>
+            <label class="field"><span>Modalidade</span><select id="modalitySelect"><option value="">Todas as modalidades</option></select></label>
+            <label class="field"><span>Área privativa mínima (m²)</span><input id="minAreaInput" type="number" min="0" step="1" placeholder="Ex.: 45" /></label>
+            <label class="field"><span>Área privativa máxima (m²)</span><input id="maxAreaInput" type="number" min="0" step="1" placeholder="Ex.: 120" /></label>
+            <label class="toggle-field"><input id="onlyNewInput" type="checkbox" /><span class="toggle-ui" aria-hidden="true"></span><span><strong>Somente novos</strong><small>Da atualização mais recente</small></span></label>
+            <label class="toggle-field"><input id="onlyFavoritesInput" type="checkbox" /><span class="toggle-ui" aria-hidden="true"></span><span><strong>Somente favoritos</strong><small>Salvos neste navegador</small></span></label>
+          </div>
+        </details>
+        <div id="activeFilters" class="active-filters hidden"></div>
+      </section>
+
+      <section class="panel alerts-panel" id="alertsPanel">
+        <div class="alert-icon">🔔</div>
+        <div class="alert-copy">
+          <h2>Alerta de novas oportunidades</h2>
+          <p id="alertStatus">Ative as notificações do navegador. O alerta pode usar a cidade e os filtros atuais.</p>
+        </div>
+        <div class="alert-controls">
+          <button id="useCurrentFiltersButton" class="button button--outline" type="button">Usar filtros atuais</button>
+          <button id="alertActionButton" class="button button--secondary" type="button">Ativar</button>
+        </div>
+      </section>
+
+      <section class="quick-tools" aria-label="Ferramentas">
+        <button id="favoritesShortcut" class="quick-tool" type="button"><span>♥</span><strong>Favoritos</strong><small id="favoriteCount">0 salvos</small></button>
+        <button id="bestDiscountShortcut" class="quick-tool" type="button"><span>%</span><strong>Maiores descontos</strong><small>ordenar oportunidades</small></button>
+        <button id="financingShortcut" class="quick-tool" type="button"><span>R$</span><strong>Com financiamento</strong><small>mostrar apenas elegíveis</small></button>
+      </section>
+
+      <section class="results-section">
+        <div class="results-heading">
+          <div><span class="section-kicker">Lista atual</span><h2>Imóveis disponíveis</h2></div>
+          <div class="results-meta" id="resultsMeta"></div>
+        </div>
+
+        <div id="loadingState" class="loading-grid" aria-live="polite"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+        <div id="errorState" class="empty-state hidden"><div class="empty-icon">!</div><h3>Não foi possível carregar a lista</h3><p id="errorText">Tente novamente em instantes.</p><button id="retryButton" class="button button--primary" type="button">Tentar novamente</button></div>
+        <div id="emptyState" class="empty-state hidden"><div class="empty-icon">⌕</div><h3>Nenhum imóvel encontrado</h3><p>Altere os filtros para ampliar a busca.</p></div>
+        <div id="cardsGrid" class="cards-grid hidden"></div>
+        <div class="load-more-wrap"><button id="loadMoreButton" class="button button--outline hidden" type="button">Mostrar mais imóveis</button></div>
+      </section>
+
+      <footer class="footer">
+        <p><strong>Fonte de dados:</strong> lista pública de imóveis da CAIXA Econômica Federal.</p>
+        <p>Aplicativo independente, sem vínculo oficial com a CAIXA. Confirme disponibilidade, condições, edital, ocupação, débitos e possibilidade de financiamento diretamente na página oficial antes de qualquer decisão de compra.</p>
+      </footer>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
