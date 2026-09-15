@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths-ignore:
       - 'data/**'
+      - '*.tmp'
+      - 'scripts/*.tmp'
+      - 'scripts/send_email_alerts.py'
+      - 'config/email-alerts.json'
   workflow_dispatch:
   schedule:
     # 09:05 UTC = 06:05 em Brasília
