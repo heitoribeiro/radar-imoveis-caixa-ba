@@ -24,15 +24,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
       - name: Atualizar lista oficial da CAIXA
         run: python scripts/update_caixa.py
+
+      - name: Enviar alerta por e-mail
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: python scripts/send_email_alerts.py
 
       - name: Salvar histórico da atualização
         shell: bash
@@ -50,10 +59,10 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Preparar site
+      - name: Preparar artefato do site
         run: |
           mkdir -p _site
-          cp index.html sw.js manifest.webmanifest _site/
+          cp index.html styles.css app.js sw.js manifest.webmanifest _site/
           cp -r icons data _site/
           touch _site/.nojekyll
 
