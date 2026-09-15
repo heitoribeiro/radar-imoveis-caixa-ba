@@ -4,11 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#075985" />
-  <meta name="description" content="Encontre imóveis da CAIXA disponíveis para compra em todo o Brasil, filtre oportunidades e acompanhe novas inclusões." />
+  <meta name="description" content="Encontre imóveis da CAIXA disponíveis para compra em todo o Brasil, filtre oportunidades, visualize no mapa e receba alertas." />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
-  <style>@media(min-width:1181px){.filters-grid--primary{grid-template-columns:minmax(235px,1.5fr) repeat(5,minmax(125px,.82fr))}}</style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynZ5ZxVRXbWEAor8gSld0Zx8C+qI=" crossorigin="" />
+  <link rel="stylesheet" href="./enhancements.css" />
   <title>Radar de Imóveis CAIXA - Brasil</title>
 </head>
 <body>
@@ -24,7 +25,7 @@
             <h1>Radar de Imóveis CAIXA</h1>
           </div>
         </div>
-        <p class="hero__copy">Pesquise imóveis disponíveis em todo o Brasil, combine filtros de perfil e acompanhe automaticamente as novas oportunidades publicadas nas listas oficiais.</p>
+        <p class="hero__copy">Pesquise imóveis disponíveis em todo o Brasil, combine filtros, veja as oportunidades no mapa e acompanhe automaticamente novas inclusões.</p>
         <div class="hero-actions">
           <button id="refreshButton" class="button button--primary" type="button"><span class="button-icon">↻</span> Verificar atualização</button>
           <button id="notificationButton" class="button button--glass" type="button"><span class="button-icon">◉</span> Ativar alertas</button>
@@ -34,6 +35,8 @@
     </header>
 
     <main class="content">
+      <div id="actionBanner" class="action-banner hidden" role="status"></div>
+
       <section class="stats-grid" aria-label="Resumo">
         <article class="stat-card"><span class="stat-label">Imóveis no Brasil</span><strong id="totalStat">—</strong><span class="stat-foot">nas listas atuais</span></article>
         <article class="stat-card"><span class="stat-label">Resultados</span><strong id="filteredStat">—</strong><span class="stat-foot">após os filtros</span></article>
@@ -51,7 +54,7 @@
           </div>
         </div>
 
-        <div class="filters-grid filters-grid--primary">
+        <div class="filters-grid filters-grid--primary filters-grid--national">
           <label class="field field--wide">
             <span>Buscar</span>
             <div class="input-with-icon"><span>⌕</span><input id="searchInput" type="search" placeholder="Bairro, endereço, modalidade ou número do imóvel" autocomplete="off" /></div>
@@ -97,7 +100,7 @@
         <div class="alert-icon">🔔</div>
         <div class="alert-copy">
           <h2>Alertas neste dispositivo</h2>
-          <p id="alertStatus">Ative as notificações do navegador. O alerta pode usar o estado, cidade e os filtros atuais.</p>
+          <p id="alertStatus">Ative as notificações do navegador usando os filtros atuais.</p>
         </div>
         <div class="alert-controls">
           <button id="useCurrentFiltersButton" class="button button--outline" type="button">Usar filtros atuais</button>
@@ -105,10 +108,34 @@
         </div>
       </section>
 
+      <section class="panel email-panel" id="emailPanel">
+        <div class="email-panel__icon">✉</div>
+        <div class="email-panel__copy">
+          <span class="section-kicker">Alerta diário por e-mail</span>
+          <h2>Receba apenas novas oportunidades do seu perfil</h2>
+          <p>O alerta usa os filtros atuais. O endereço é confirmado por e-mail e cada mensagem possui um link para cancelar o alerta sem senha.</p>
+          <div id="emailProfileSummary" class="email-profile-summary">Todo o Brasil</div>
+        </div>
+        <form id="emailAlertForm" class="email-form">
+          <label class="field"><span>Seu e-mail</span><input id="emailInput" type="email" required autocomplete="email" placeholder="voce@exemplo.com" /></label>
+          <button id="emailSubscribeButton" class="button button--secondary" type="submit">Cadastrar alerta</button>
+          <small id="emailStatus" class="email-status">O e-mail não é armazenado no GitHub.</small>
+        </form>
+      </section>
+
       <section class="quick-tools" aria-label="Ferramentas">
         <button id="favoritesShortcut" class="quick-tool" type="button"><span>♥</span><strong>Favoritos</strong><small id="favoriteCount">0 salvos</small></button>
         <button id="bestDiscountShortcut" class="quick-tool" type="button"><span>%</span><strong>Maiores descontos</strong><small>ordenar oportunidades</small></button>
         <button id="financingShortcut" class="quick-tool" type="button"><span>R$</span><strong>Com financiamento</strong><small>mostrar apenas elegíveis</small></button>
+      </section>
+
+      <section class="panel map-panel" id="mapPanel">
+        <div class="map-heading">
+          <div><span class="section-kicker">Visão geográfica</span><h2>Mapa dos imóveis</h2><p id="mapStatus">O mapa acompanha os filtros da pesquisa.</p></div>
+          <button id="loadMoreMapButton" class="button button--outline hidden" type="button">Carregar mais pontos</button>
+        </div>
+        <div id="propertyMap" class="property-map" aria-label="Mapa dos imóveis filtrados"></div>
+        <p class="map-footnote">Sem filtro de Estado, o mapa mostra uma visão resumida por UF. Ao selecionar Estado ou Cidade, são exibidos pontos georreferenciados dos imóveis. Endereços sem coordenada oficial podem usar geocodificação aproximada.</p>
       </section>
 
       <section class="results-section">
@@ -131,7 +158,20 @@
     </main>
   </div>
 
+  <div id="galleryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="galleryTitle">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__card">
+      <button class="modal__close" type="button" data-close-modal aria-label="Fechar">×</button>
+      <div class="modal__heading"><span class="section-kicker">Galeria CAIXA</span><h2 id="galleryTitle">Fotos do imóvel</h2><p id="gallerySubtitle"></p></div>
+      <div id="galleryLoading" class="gallery-loading">Carregando fotos da página oficial…</div>
+      <div id="galleryGrid" class="gallery-grid hidden"></div>
+      <div id="galleryEmpty" class="gallery-empty hidden">A página oficial não disponibilizou fotos que pudéssemos exibir aqui. Você ainda pode abrir o imóvel diretamente na CAIXA.</div>
+      <a id="galleryOfficialLink" class="button button--secondary modal__official" href="#" target="_blank" rel="noopener">Abrir na CAIXA</a>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9coqIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="./app-v4.js"></script>
 </body>
 </html>
