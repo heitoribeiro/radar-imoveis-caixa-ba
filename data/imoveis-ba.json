@@ -1,0 +1,11 @@
+{
+  "state": "BA",
+  "source": "https://venda-imoveis.caixa.gov.br/sistema/download-lista.asp",
+  "csvSource": "https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_BA.csv",
+  "generatedAt": null,
+  "fetchedAt": null,
+  "updatedAt": null,
+  "total": 0,
+  "newCount": 0,
+  "properties": []
+}
