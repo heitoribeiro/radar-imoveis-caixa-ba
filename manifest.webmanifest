@@ -1,7 +1,7 @@
 {
-  "name": "Radar de Imóveis CAIXA - Bahia",
-  "short_name": "Radar Imóveis BA",
-  "description": "Consulta não oficial de imóveis da CAIXA disponíveis para compra na Bahia.",
+  "name": "Radar de Imóveis CAIXA - Brasil",
+  "short_name": "Radar CAIXA",
+  "description": "Consulta independente de imóveis da CAIXA disponíveis para compra em todo o Brasil.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
