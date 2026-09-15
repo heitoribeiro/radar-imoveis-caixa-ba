@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'data/**'
+      - 'data/imoveis-ba.json'
+      - 'data/first-seen.json'
   workflow_dispatch:
   schedule:
     # 09:05 UTC = 06:05 na Bahia (UTC-3)
@@ -34,10 +35,20 @@ jobs:
       - name: Atualizar lista oficial da CAIXA
         run: python scripts/update_caixa.py
 
+      - name: Enviar alertas por e-mail
+        env:
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+        run: python scripts/send_alerts.py
+
       - name: Salvar histórico da atualização
         shell: bash
         run: |
-          if [[ -n "$(git status --porcelain data/)" ]]; then
+          if [[ -n "$(git status --porcelain data/imoveis-ba.json data/first-seen.json)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add data/imoveis-ba.json data/first-seen.json
