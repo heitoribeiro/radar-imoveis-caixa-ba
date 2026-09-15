@@ -1,0 +1,14 @@
+{
+  "name": "Radar de Imóveis CAIXA - Bahia",
+  "short_name": "Radar Imóveis BA",
+  "description": "Consulta não oficial de imóveis da CAIXA disponíveis para compra na Bahia.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#075985",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
