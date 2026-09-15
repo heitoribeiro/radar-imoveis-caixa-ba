@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Atualiza a lista pública nacional de imóveis da CAIXA para o GitHub Pages.
 
-- Baixa as 27 listas estaduais de forma controlada e com novas tentativas.
+- Baixa as 27 listas estaduais com intervalo conservador e novas tentativas.
 - Estrutura tipo, quartos, WC, vagas e áreas.
 - Mantém a primeira data de detecção global por imóvel.
 - Gera a base nacional apenas para o artefato do Pages, evitando inflar o Git.
@@ -32,9 +32,12 @@ UFS = [
     "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
     "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ]
+REQUEST_INTERVAL_SECONDS = 3.0
+
 
 def now_br() -> datetime:
     return datetime.now(timezone.utc).astimezone(BR_TZ)
+
 
 def normalize(value: str | None) -> str:
     value = str(value or "")
@@ -44,6 +47,7 @@ def normalize(value: str | None) -> str:
     value = re.sub(r"[^a-zA-Z0-9]+", " ", value)
     return value.strip().lower()
 
+
 def decode_bytes(raw: bytes, uf: str) -> str:
     for enc in ("cp1252", "latin1", "utf-8"):
         try:
@@ -52,29 +56,40 @@ def decode_bytes(raw: bytes, uf: str) -> str:
             pass
     raise RuntimeError(f"{uf}: codificação do CSV não reconhecida")
 
-def download_uf(uf: str, retries: int = 5) -> str:
+
+def looks_like_csv(text: str) -> bool:
+    sample = text[:16000]
+    normalized = normalize(sample)
+    return ";" in sample and "cidade" in normalized and "imovel" in normalized
+
+
+def download_uf(uf: str, retries: int = 3) -> str:
     url = SOURCE_URL.format(uf=uf)
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; RadarImoveisBrasil-GitHubPages/3.1)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
         "Accept": "text/csv,application/octet-stream,*/*",
+        "Cache-Control": "no-cache",
+        "Connection": "close",
     }
     last = None
     for attempt in range(1, retries + 1):
         try:
-            with urlopen(Request(url, headers=headers), timeout=60) as response:
+            with urlopen(Request(url, headers=headers), timeout=75) as response:
                 raw = response.read()
-            if len(raw) < 200:
+            if len(raw) < 100:
                 raise RuntimeError(f"{uf}: arquivo vazio")
             text = decode_bytes(raw, uf)
-            sample = normalize(text[:8000])
-            if ";" not in text[:8000] or "cidade" not in sample or "imovel" not in sample:
+            if not looks_like_csv(text):
                 raise RuntimeError(f"{uf}: resposta temporária não é o CSV esperado")
             return text
         except (HTTPError, URLError, TimeoutError, RuntimeError) as exc:
             last = exc
             if attempt < retries:
-                time.sleep(attempt * 3)
+                wait = 8 * attempt
+                print(f"[{uf}] tentativa {attempt} falhou; aguardando {wait}s...", file=sys.stderr, flush=True)
+                time.sleep(wait)
     raise RuntimeError(f"{uf}: falha após {retries} tentativas: {last}")
+
 
 def generation_date(text: str) -> str | None:
     match = re.search(r"Data\s+de\s+gera(?:ç|c)[aã]o\s*:?\s*;?\s*(\d{2}/\d{2}/\d{4})", text, re.I)
@@ -84,6 +99,7 @@ def generation_date(text: str) -> str | None:
         return None
     day, month, year = match.group(1).split("/")
     return f"{year}-{month}-{day}"
+
 
 def parse_decimal(value: str | None) -> float | None:
     text = str(value or "").strip().replace("R$", "").replace("%", "").replace(" ", "")
@@ -99,12 +115,14 @@ def parse_decimal(value: str | None) -> float | None:
     except ValueError:
         return None
 
+
 def find_header(lines: list[str]) -> int:
-    for idx, line in enumerate(lines[:20]):
+    for idx, line in enumerate(lines[:40]):
         cells = [normalize(cell) for cell in next(csv.reader([line], delimiter=";"))]
         if any("imovel" in cell for cell in cells) and "cidade" in cells:
             return idx
     raise RuntimeError("Cabeçalho da lista não reconhecido")
+
 
 def col_index(headers: list[str], predicate) -> int:
     for idx, value in enumerate(normalize(h) for h in headers):
@@ -112,8 +130,10 @@ def col_index(headers: list[str], predicate) -> int:
             return idx
     return -1
 
+
 def get(row: list[str], idx: int) -> str:
     return row[idx].strip() if 0 <= idx < len(row) else ""
+
 
 def absolute_link(value: str, number: str) -> str:
     value = value.strip()
@@ -126,6 +146,7 @@ def absolute_link(value: str, number: str) -> str:
         return f"https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel={digits}"
     return SOURCE_PAGE
 
+
 def _first_number(patterns: list[str], text: str) -> int | None:
     for pattern in patterns:
         match = re.search(pattern, text, re.I)
@@ -136,9 +157,11 @@ def _first_number(patterns: list[str], text: str) -> int | None:
                 pass
     return None
 
+
 def _area(pattern: str, text: str) -> float | None:
     match = re.search(pattern, text, re.I)
     return parse_decimal(match.group(1)) if match else None
+
 
 def parse_description(description: str, price: float | None) -> dict:
     text = str(description or "").strip()
@@ -173,6 +196,7 @@ def parse_description(description: str, price: float | None) -> dict:
         "areaTerreno": area_terreno,
         "precoM2": preco_m2,
     }
+
 
 def parse_properties(text: str, expected_uf: str) -> list[dict]:
     lines = text.splitlines()
@@ -224,6 +248,7 @@ def parse_properties(text: str, expected_uf: str) -> list[dict]:
         result.append(prop)
     return result
 
+
 def load_registry() -> dict:
     if not FIRST_SEEN_FILE.exists():
         return {"initialized": False, "scope": None, "baselineCreatedAt": None, "items": {}}
@@ -235,6 +260,7 @@ def load_registry() -> dict:
     except Exception:
         return {"initialized": False, "scope": None, "baselineCreatedAt": None, "items": {}}
 
+
 def migrate_registry(registry: dict) -> None:
     items = registry.setdefault("items", {})
     if registry.get("scope") == "BR":
@@ -244,28 +270,28 @@ def migrate_registry(registry: dict) -> None:
         migrated[key if ":" in key else f"BA:{key}"] = value
     registry["items"] = migrated
 
+
 def fetch_all_states() -> tuple[list[dict], list[dict]]:
     properties: list[dict] = []
     states_meta: list[dict] = []
     errors: list[str] = []
-    # A CAIXA pode devolver páginas de rejeição quando recebe muitas consultas
-    # simultâneas. A coleta sequencial é intencional para priorizar confiabilidade.
     for position, uf in enumerate(UFS):
         try:
             text = download_uf(uf)
             props = parse_properties(text, uf)
             properties.extend(props)
             states_meta.append({"uf": uf, "total": len(props), "generatedAt": generation_date(text)})
-            print(f"[{uf}] {len(props)} imóveis")
+            print(f"[{uf}] {len(props)} imóveis", flush=True)
         except Exception as exc:
             errors.append(f"{uf}: {exc}")
-            print(f"[{uf}] ERRO: {exc}", file=sys.stderr)
+            print(f"[{uf}] ERRO: {exc}", file=sys.stderr, flush=True)
         if position < len(UFS) - 1:
-            time.sleep(0.8)
+            time.sleep(REQUEST_INTERVAL_SECONDS)
     if errors:
         raise RuntimeError("Falha em uma ou mais UFs: " + " | ".join(errors))
     states_meta.sort(key=lambda x: x["uf"])
     return properties, states_meta
+
 
 def main() -> int:
     PUBLIC_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -325,8 +351,9 @@ def main() -> int:
         "properties": properties,
     }
     NATIONAL_FILE.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"Atualização nacional concluída: {len(properties)} imóveis; {new_count} novos.")
+    print(f"Atualização nacional concluída: {len(properties)} imóveis; {new_count} novos.", flush=True)
     return 0
+
 
 if __name__ == "__main__":
     try:
