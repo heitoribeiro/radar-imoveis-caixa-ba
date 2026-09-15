@@ -1,4 +1,4 @@
-const CACHE='radar-caixa-ba-v1',BASE=new URL('./',self.location.href),U=p=>new URL(p,BASE).toString(),ASSETS=[U('./'),U('index.html'),U('manifest.webmanifest'),U('icons/icon-192.png'),U('icons/icon-512.png')],DATA=U('data/imoveis-ba.json');
+const CACHE='radar-caixa-ba-v2',BASE=new URL('./',self.location.href),U=p=>new URL(p,BASE).toString(),ASSETS=[U('./'),U('index.html'),U('manifest.webmanifest'),U('assets/app.css'),U('assets/app.js'),U('icons/icon-192.png'),U('icons/icon-512.png')],DATA=U('data/imoveis-ba.json');
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()])));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match(U('index.html')))))});
