@@ -207,6 +207,7 @@ function initBrokerMarketplace(){
   }
   try {
     await import('./app-core.js?mapfix=20260915-2');
+    await import('./email-manage.js?alerts=20260916-1');
     initBrokerMarketplace();
   } catch (e) {
     console.error('[Radar CAIXA] Falha ao iniciar aplicação:', e);
