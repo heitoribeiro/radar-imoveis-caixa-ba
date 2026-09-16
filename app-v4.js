@@ -118,8 +118,8 @@ function brokerPanelHtml(){return `
   <div>
     <span class="broker-kicker">Betel Radar Imóveis • Corretores parceiros</span>
     <h2>Transforme oportunidades em novos clientes</h2>
-    <p>Corretores com CRECI validado poderão escolher imóveis da plataforma para atender compradores interessados. A participação será vinculada a um plano pago e o contato só será exibido enquanto a assinatura estiver ativa.</p>
-    <div class="broker-benefits"><span>CRECI verificado</span><span>Leads por imóvel</span><span>Contato por WhatsApp</span><span>Pix e cartão</span></div>
+    <p>Corretores com assinatura ativa e validações profissionais poderão escolher imóveis da plataforma para atender compradores interessados. Para intermediação de imóveis CAIXA, o credenciamento específico também será conferido.</p>
+    <div class="broker-benefits"><span>CRECI verificado</span><span>Credenciamento CAIXA</span><span>Leads por imóvel</span><span>Pix e cartão</span></div>
   </div>
   <div class="broker-actions"><button class="button button--secondary" id="openBrokerSignup" type="button">Quero ser corretor parceiro</button></div>
 </section>`}
@@ -130,7 +130,7 @@ function brokerModalHtml(){return `
  <div class="broker-modal__card" role="dialog" aria-modal="true" aria-labelledby="brokerModalTitle">
   <button class="broker-modal__close" data-broker-close aria-label="Fechar">×</button>
   <span class="broker-kicker">Área profissional</span><h2 id="brokerModalTitle">Cadastro de corretor parceiro</h2>
-  <p>Cadastre seus dados profissionais. O perfil só será exibido aos compradores depois do pagamento e da validação do CRECI.</p>
+  <p>Cadastre seus dados profissionais. O pagamento não libera o perfil automaticamente: CRECI e, para intermediação de imóveis CAIXA, credenciamento específico precisam ser validados.</p>
   <div id="brokerPlans" class="broker-plan-list"><small>Carregando planos…</small></div>
   <form id="brokerSignupForm">
    <div class="broker-form-grid">
@@ -142,10 +142,11 @@ function brokerModalHtml(){return `
     <label>Telefone<input name="phone" inputmode="tel"></label>
     <label>Cidade de atuação<input name="city" placeholder="Ex.: Salvador"></label>
     <label>UF de atuação<select name="state"><option value="">Selecione</option>${['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(u=>`<option>${u}</option>`).join('')}</select></label>
+    <label class="full">Possui credenciamento CAIXA para intermediação?<select name="caixa_credential"><option value="nao">Não / ainda não</option><option value="sim">Sim, possuo credenciamento</option></select></label>
     <input class="full" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
    </div>
    <input type="hidden" name="plan_id" id="brokerPlanId">
-   <p class="broker-note">O pagamento será processado pelo provedor externo. A plataforma não armazena número de cartão. O cadastro profissional fica sujeito à validação do CRECI.</p>
+   <p class="broker-note">A declaração de credenciamento CAIXA não gera selo automático: quando informada, ficará pendente de validação. O pagamento será processado pelo provedor externo e a plataforma não armazena número de cartão.</p>
    <button class="button button--secondary" id="brokerSubmit" type="submit">Continuar cadastro</button>
    <div id="brokerSignupStatus" class="broker-status"></div>
   </form>
@@ -156,7 +157,7 @@ function brokerModalHtml(){return `
  <div class="broker-modal__card" role="dialog" aria-modal="true">
   <button class="broker-modal__close" data-broker-contact-close aria-label="Fechar">×</button>
   <span class="broker-kicker">Atendimento profissional</span><h2>Corretores parceiros deste imóvel</h2>
-  <p>Os profissionais abaixo possuem cadastro ativo na plataforma e CRECI validado. Confirme condições e responsabilidades diretamente com o corretor escolhido.</p>
+  <p>Os profissionais exibidos para intermediação de imóveis CAIXA possuem assinatura ativa, CRECI e credenciamento CAIXA validados na plataforma. Confirme condições e responsabilidades diretamente com o profissional escolhido.</p>
   <div id="brokerContactList" class="broker-list"><small>Carregando…</small></div>
  </div>
 </div>`}
@@ -192,7 +193,7 @@ function initBrokerMarketplace(){
  brokerStyles();const map=document.querySelector('#mapPanel');if(map&&!document.querySelector('#brokerPartnerPanel'))map.insertAdjacentHTML('beforebegin',brokerPanelHtml());if(!document.querySelector('#brokerSignupModal'))document.body.insertAdjacentHTML('beforeend',brokerModalHtml());
  document.querySelector('#openBrokerSignup')?.addEventListener('click',openBrokerSignup);document.querySelector('#brokerSignupForm')?.addEventListener('submit',submitBrokerForm);document.querySelectorAll('[data-broker-close]').forEach(x=>x.addEventListener('click',closeBrokerSignup));document.querySelectorAll('[data-broker-contact-close]').forEach(x=>x.addEventListener('click',closeBrokerContact));
  const grid=document.querySelector('#cardsGrid');if(grid){decoratePropertyCards();new MutationObserver(decoratePropertyCards).observe(grid,{childList:true,subtree:true});}
- const payment=new URL(location.href).searchParams.get('broker_payment');if(payment){const panel=document.querySelector('#brokerPartnerPanel');if(panel){const msg=document.createElement('div');msg.className='broker-status '+(payment==='success'?'ok':'');msg.textContent=payment==='success'?'Pagamento recebido. Seu cadastro seguirá para validação do CRECI.':payment==='pending'?'Pagamento em processamento. Atualizaremos sua assinatura assim que houver confirmação.':'O pagamento não foi concluído. Você pode tentar novamente pelo cadastro do corretor.';panel.querySelector('div')?.appendChild(msg);}const u=new URL(location.href);u.searchParams.delete('broker_payment');history.replaceState(null,'',u);}
+ const payment=new URL(location.href).searchParams.get('broker_payment');if(payment){const panel=document.querySelector('#brokerPartnerPanel');if(panel){const msg=document.createElement('div');msg.className='broker-status '+(payment==='success'?'ok':'');msg.textContent=payment==='success'?'Pagamento recebido. Seu cadastro seguirá para validação do CRECI e, quando aplicável, do credenciamento CAIXA.':payment==='pending'?'Pagamento em processamento. Atualizaremos sua assinatura assim que houver confirmação.':'O pagamento não foi concluído. Você pode tentar novamente pelo cadastro do corretor.';panel.querySelector('div')?.appendChild(msg);}const u=new URL(location.href);u.searchParams.delete('broker_payment');history.replaceState(null,'',u);}
 }
 
 (async () => {
