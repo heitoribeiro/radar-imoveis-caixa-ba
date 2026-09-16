@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#075985" />
+  <title>Status do alerta — Betel Radar Imóveis</title>
+  <style>
+    :root{color-scheme:light}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(180deg,#eaf3f8,#f7fafc);font-family:Arial,sans-serif;color:#0f172a}
+    .card{width:min(100%,580px);background:#fff;border:1px solid #dbe4ee;border-radius:24px;padding:32px;box-shadow:0 24px 70px rgba(15,23,42,.12)}
+    .kicker{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0e7490}
+    .icon{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;font-size:32px;margin:18px 0 14px;background:#ecfdf5;color:#047857}
+    .icon.error{background:#fef2f2;color:#b91c1c}
+    h1{font-size:2rem;line-height:1.1;margin:0 0 12px}
+    p{font-size:1.05rem;line-height:1.6;color:#64748b;margin:0}
+    a{display:inline-block;margin-top:22px;background:#075985;color:#fff;text-decoration:none;font-weight:800;padding:14px 18px;border-radius:11px}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="kicker">Betel Radar Imóveis</div>
+    <div id="icon" class="icon">✓</div>
+    <h1 id="title">Alerta confirmado</h1>
+    <p id="message">Seu alerta está ativo. Você receberá novas oportunidades compatíveis com os filtros cadastrados.</p>
+    <a href="https://betelradar.com.br/">Abrir Betel Radar Imóveis</a>
+  </main>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const status = p.get('status') || 'confirmed';
+    const title = document.querySelector('#title');
+    const message = document.querySelector('#message');
+    const icon = document.querySelector('#icon');
+    const states = {
+      confirmed:['Alerta confirmado','Seu alerta está ativo. Você receberá novas oportunidades compatíveis com os filtros cadastrados.','✓',false],
+      already_active:['Alerta já estava ativo','Este alerta já havia sido confirmado anteriormente e continua ativo.','✓',false],
+      unsubscribed:['Alerta cancelado','O alerta foi cancelado e você não receberá novas mensagens deste perfil.','✓',false],
+      already_unsubscribed:['Alerta já estava cancelado','Este alerta já havia sido desativado anteriormente.','✓',false],
+      invalid:['Não foi possível concluir','Este link não é válido ou foi substituído por uma solicitação mais recente.','!',true],
+      error:['Não foi possível concluir','Ocorreu uma falha temporária. Tente novamente em instantes.','!',true]
+    };
+    const s = states[status] || states.error;
+    title.textContent=s[0]; message.textContent=s[1]; icon.textContent=s[2]; if(s[3]) icon.classList.add('error');
+  </script>
+</body>
+</html>
