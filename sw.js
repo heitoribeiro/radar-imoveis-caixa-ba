@@ -1,6 +1,6 @@
 const CACHE='radar-caixa-brasil-pages-v8';
 const BASE=new URL('./',self.location.href);const url=p=>new URL(p,BASE).toString();
-const STATIC_ASSETS=[url('./'),url('index.html'),url('alert-status.html'),url('styles.css'),url('enhancements.css'),url('app-v4.js'),url('app-core.js'),url('email-manage.js'),url('manifest.webmanifest'),url('icons/icon-192.png'),url('icons/icon-512.png')];
+const STATIC_ASSETS=[url('./'),url('index.html'),url('alerta-status.html'),url('styles.css'),url('enhancements.css'),url('app-v4.js'),url('app-core.js'),url('email-manage.js'),url('manifest.webmanifest'),url('icons/icon-192.png'),url('icons/icon-512.png')];
 const DATA_URL=url('data/imoveis-brasil.json'),DB_NAME='radar-caixa-brasil',STORE='settings';
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC_ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()])));
