@@ -77,7 +77,7 @@ jobs:
       - name: Preparar artefato do site
         run: |
           mkdir -p _site/data
-          cp index.html alerta-status.html styles.css enhancements.css app-v4.js app-core.js email-manage.js broker-portal.js sw.js manifest.webmanifest _site/
+          cp index.html alerta-status.html styles.css enhancements.css app-v4.js app-core.js email-manage.js broker-portal.js sw.js manifest.webmanifest admin.html admin.css admin.js _site/
           cp -r icons _site/
           cp .generated-data/imoveis-brasil.json _site/data/
           python - <<'PY'
