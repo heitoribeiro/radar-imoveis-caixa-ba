@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#075985" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Administração — Betel Radar Imóveis</title>
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./admin.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">Betel Radar Imóveis</span>
+        <h1>Validação de corretores</h1>
+        <p>Conferência de assinatura, CRECI, credenciamento CAIXA e situação de publicação dos corretores parceiros.</p>
+      </div>
+      <a class="link-back" href="./">← Voltar ao Radar</a>
+    </header>
+
+    <section id="loginPanel" class="panel login">
+      <h2>Acesso administrativo</h2>
+      <p>Informe um e-mail autorizado. O acesso é feito por link temporário enviado por e-mail.</p>
+      <form id="adminAccessForm">
+        <div class="field">
+          <label for="adminEmail">E-mail administrativo</label>
+          <input id="adminEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com" />
+        </div>
+        <div style="margin-top:16px"><button id="adminAccessButton" class="btn btn-primary" type="submit">Enviar link de acesso</button></div>
+        <div id="adminAccessStatus" class="status-msg"></div>
+      </form>
+    </section>
+
+    <section id="dashboard" class="dashboard">
+      <div class="summary">
+        <article class="panel metric"><small>Total de corretores</small><strong id="metricTotal">0</strong></article>
+        <article class="panel metric"><small>Em validação</small><strong id="metricReview">0</strong></article>
+        <article class="panel metric"><small>CRECI pendente</small><strong id="metricCreci">0</strong></article>
+        <article class="panel metric"><small>CAIXA pendente</small><strong id="metricCaixa">0</strong></article>
+      </div>
+
+      <div class="panel toolbar">
+        <input id="adminSearch" type="search" placeholder="Nome, e-mail, CRECI, cidade..." />
+        <select id="adminFilter">
+          <option value="all">Todos</option>
+          <option value="pending">Pendentes</option>
+          <option value="active">Perfis ativos</option>
+          <option value="rejected">Rejeitados</option>
+        </select>
+        <button id="adminRefresh" class="btn btn-outline" type="button">Atualizar</button>
+      </div>
+
+      <div id="adminStatus" class="status-msg" style="margin:0 0 12px"></div>
+      <div id="brokerList" class="broker-list"></div>
+    </section>
+  </main>
+  <script src="./admin.js" defer></script>
+</body>
+</html>
