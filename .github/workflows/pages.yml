@@ -77,9 +77,19 @@ jobs:
       - name: Preparar artefato do site
         run: |
           mkdir -p _site/data
-          cp index.html alerta-status.html styles.css enhancements.css app-v4.js app-core.js email-manage.js sw.js manifest.webmanifest _site/
+          cp index.html alerta-status.html styles.css enhancements.css app-v4.js app-core.js email-manage.js broker-portal.js sw.js manifest.webmanifest _site/
           cp -r icons _site/
           cp .generated-data/imoveis-brasil.json _site/data/
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('_site/index.html')
+          html=p.read_text(encoding='utf-8')
+          marker='<script type="module" src="./app-v4.js"></script>'
+          extra=marker+'\n  <script src="./broker-portal.js" defer></script>'
+          if 'broker-portal.js' not in html:
+              html=html.replace(marker, extra)
+          p.write_text(html, encoding='utf-8')
+          PY
           touch _site/.nojekyll
 
       - name: Enviar artefato do Pages
