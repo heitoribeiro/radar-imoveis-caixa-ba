@@ -96,9 +96,37 @@ function patchBrokerRecurringUi(){
     const msg=document.createElement('div');
     msg.className='broker-status ok';
     msg.style.marginTop='14px';
-    msg.textContent='Sua adesão foi enviada ao Mercado Pago. A assinatura será ativada após a confirmação da primeira cobrança. A validação do CRECI e, quando aplicável, do credenciamento CAIXA continua sendo necessária.';
+    msg.textContent='Confirmando sua assinatura com o Mercado Pago…';
     const target=panel.querySelector('div');
     target?.appendChild(msg);
+
+    const isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(returned);
+    if(isUuid){
+      fetch(`${ALERT_API}/broker-subscription-sync`,{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({subscription_id:returned})
+      }).then(async r=>{
+        const b=await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(b.message||'Não foi possível confirmar a assinatura agora.');
+        if(b.payment_approved||b.status==='active'){
+          msg.className='broker-status ok';
+          msg.textContent='Pagamento confirmado e assinatura ativa. Seu cadastro profissional seguirá para validação do CRECI e, quando aplicável, do credenciamento CAIXA.';
+        }else if(b.synced){
+          msg.className='broker-status ok';
+          msg.textContent='Assinatura localizada no Mercado Pago. Aguardamos a confirmação financeira da primeira cobrança para concluir a ativação.';
+        }else{
+          msg.className='broker-status';
+          msg.textContent=b.message||'A assinatura ainda está sendo processada pelo Mercado Pago.';
+        }
+      }).catch(()=>{
+        msg.className='broker-status';
+        msg.textContent='Recebemos o retorno da assinatura. A confirmação financeira continuará sendo verificada pelo sistema.';
+      });
+    }else{
+      msg.textContent='Sua adesão foi enviada ao Mercado Pago. A assinatura será ativada após a confirmação da primeira cobrança. A validação do CRECI e, quando aplicável, do credenciamento CAIXA continua sendo necessária.';
+    }
+
     url.searchParams.delete('broker_subscription');
     history.replaceState(null,'',url);
   }
